@@ -13,14 +13,21 @@ export class RadarService {
   }
 
   post(scanRequest: ScanRequestDto): Candidate[] {
+    console.time('time to process scan');
     const candidates = this.buildCandidatesAndFilterRange(scanRequest);
 
-    const filteredCandidates = this.filterByProtocol(
+    const filteredCandidates = this.filterByProtocolVersion2(
       candidates,
       scanRequest.protocols,
     );
 
-    return filteredCandidates;
+    const sortedCandidates = this.sortCandidatesByProtocolDistance(
+      filteredCandidates,
+      scanRequest.protocols,
+    );
+
+    console.timeEnd('time to process scan');
+    return sortedCandidates;
   }
 
   private buildCandidatesAndFilterRange(
@@ -47,6 +54,45 @@ export class RadarService {
     return candidates;
   }
 
+  private filterByProtocolVersion2(
+    candidates: Candidate[],
+    protocols: Protocol[],
+  ): Candidate[] {
+    const protocolsSet = new Set(
+      this.getProtocolPrioritiesOrder().filter((orderedProtocol) => {
+        return protocols.includes(orderedProtocol);
+      }),
+    );
+
+    const finalCandidates = candidates.filter((candidate) => {
+      for (const protocol of protocolsSet) {
+        switch (protocol) {
+          case Protocol.AvoidMech:
+            if (candidate.enemies?.type === 'mech') return false;
+            break;
+
+          case Protocol.AvoidCrossfire:
+            if (candidate.allies && candidate.allies > 0) return false;
+            break;
+
+          case Protocol.AssistAllies:
+            if (!candidate.allies || candidate.allies === 0) return false;
+            break;
+
+          case Protocol.PrioritizeMech:
+            if (candidate.enemies?.type !== 'mech') return false;
+            break;
+
+          default:
+            break;
+        }
+      }
+      return true;
+    });
+
+    return finalCandidates;
+  }
+
   private filterByProtocol(
     candidates: Candidate[],
     protocols: Protocol[],
@@ -57,55 +103,84 @@ export class RadarService {
       }),
     );
 
-    const finalCandidates = candidates.reduce((acc: Candidate[], candidate) => {
-      protocolsSet.forEach((protocol) => {
+    const finalCandidates = candidates.filter((candidate) => {
+      for (const protocol of protocolsSet) {
         switch (protocol) {
           case Protocol.AvoidMech:
-            if (candidate.enemies?.type !== 'mech') {
-              acc.push(candidate);
-            }
+            if (candidate.enemies?.type === 'mech') return false;
             break;
+
           case Protocol.AvoidCrossfire:
-            if (!candidate.allies || candidate.allies === 0) {
-              acc.push(candidate);
-            }
+            if (candidate.allies && candidate.allies > 0) return false;
             break;
+
           case Protocol.AssistAllies:
-            if (candidate.allies && candidate.allies > 0) {
-              acc.push(candidate);
-            }
+            if (!candidate.allies || candidate.allies === 0) return false;
             break;
+
           case Protocol.PrioritizeMech:
-            if (candidate.enemies?.type === 'mech') {
-              acc.push(candidate);
-            }
+            if (candidate.enemies?.type !== 'mech') return false;
             break;
-          case Protocol.ClosestEnemies:
-            if (candidate.enemies?.number && candidate.enemies?.number > 0) {
-              acc.push(candidate);
-            }
-            break;
-          case Protocol.FurthestEnemies:
-            if (candidate.enemies?.number && candidate.enemies?.number > 0) {
-              acc.push(candidate);
-            }
+
+          default:
             break;
         }
-      });
-      return acc;
-    }, []);
+      }
+
+      return true;
+    });
 
     return finalCandidates;
   }
 
+  private sortCandidatesByProtocolDistance(
+    candidates: Candidate[],
+    protocols: Protocol[],
+  ): Candidate[] {
+    const ordered = this.getProtocolPrioritiesOrder().filter((p) =>
+      protocols.includes(p),
+    );
+
+    const satisfies = (c: Candidate, p: Protocol): boolean => {
+      switch (p) {
+        case Protocol.AvoidMech:
+          return c.enemies?.type !== 'mech';
+        case Protocol.AvoidCrossfire:
+          return !c.allies || c.allies === 0;
+        case Protocol.AssistAllies:
+          return !!c.allies && c.allies > 0;
+        case Protocol.PrioritizeMech:
+          return c.enemies?.type === 'mech';
+        default:
+          return true;
+      }
+    };
+
+    const byPriorityThenDistance = (a: Candidate, b: Candidate): number => {
+      for (const p of ordered) {
+        const sa = satisfies(a, p) ? 1 : 0;
+        const sb = satisfies(b, p) ? 1 : 0;
+        if (sa !== sb) return sb - sa;
+      }
+
+      if (protocols.includes(Protocol.ClosestEnemies)) {
+        return a.distance - b.distance;
+      }
+      if (protocols.includes(Protocol.FurthestEnemies)) {
+        return b.distance - a.distance;
+      }
+      return 0;
+    };
+
+    return candidates.slice().sort(byPriorityThenDistance);
+  }
+
   private getProtocolPrioritiesOrder(): Protocol[] {
     return [
-      Protocol.AvoidMech,
-      Protocol.AvoidCrossfire,
       Protocol.AssistAllies,
+      Protocol.AvoidCrossfire,
+      Protocol.AvoidMech,
       Protocol.PrioritizeMech,
-      Protocol.ClosestEnemies,
-      Protocol.FurthestEnemies,
     ];
   }
 

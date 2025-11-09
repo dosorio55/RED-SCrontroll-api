@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { RadarService } from './radar.service';
 import { ScanRequestDto } from './dto/scan-request.dto';
 import Candidate from './types/candidate.type';
@@ -13,6 +20,7 @@ export class RadarController {
   }
 
   @Post()
+  @HttpCode(HttpStatus.OK)
   post(@Body() body: ScanRequestDto): Candidate[] {
     return this.radarService.post(body);
   }
