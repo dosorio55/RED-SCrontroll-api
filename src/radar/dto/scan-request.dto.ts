@@ -1,5 +1,7 @@
+import { Protocol } from '../types/protocol.enum';
+
 export class ScanRequestDto {
-  protocols: string[];
+  protocols: Protocol[];
   scan: {
     coordinates: {
       x: number;
