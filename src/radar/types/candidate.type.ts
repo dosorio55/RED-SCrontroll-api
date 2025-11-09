@@ -1,4 +1,4 @@
-interface Candidate {
+export default interface Candidate {
   coordinates: [number, number];
   distance: number;
   allies?: number;
@@ -7,5 +7,3 @@ interface Candidate {
     number: number;
   };
 }
-
-export default Candidate;
