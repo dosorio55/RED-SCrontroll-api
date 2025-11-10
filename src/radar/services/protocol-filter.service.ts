@@ -9,8 +9,10 @@ export class ProtocolFilterService {
     filteringProtocols: Protocol[],
   ): Candidate[] {
     const result: Candidate[] = [];
+
     for (const candidate of candidates) {
       let ok = true;
+
       for (const protocol of filteringProtocols) {
         switch (protocol) {
           case Protocol.AvoidMech:
@@ -41,6 +43,7 @@ export class ProtocolFilterService {
 
         if (!ok) break;
       }
+
       if (ok) result.push(candidate);
     }
     return result;

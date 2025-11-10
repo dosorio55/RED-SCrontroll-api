@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { RadarService } from './radar.service';
 import { ScanRequestDto } from './dto/scan-request.dto';
-import Candidate from './types/candidate.type';
+import type RadarResponse from './types/radar-response.type';
 
 @Controller('radar')
 export class RadarController {
@@ -21,7 +21,7 @@ export class RadarController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
-  post(@Body() body: ScanRequestDto): Candidate[] {
+  post(@Body() body: ScanRequestDto): RadarResponse {
     return this.radarService.post(body);
   }
 }

@@ -10,7 +10,7 @@ import { ProtocolFilterService } from './protocol-filter.service';
 export class ProtocolEngineService {
   constructor(
     private readonly resolver: ProtocolOrderResolver,
-    private readonly filter: ProtocolFilterService,
+    private readonly filterService: ProtocolFilterService,
     @Inject(PROTOCOL_STRATEGY_MAP)
     private readonly strategies: Record<Protocol, ProtocolStrategy>,
   ) {}
@@ -18,7 +18,7 @@ export class ProtocolEngineService {
   run(protocols: Protocol[], candidates: Candidate[]): Candidate[] {
     const filteringProtocols =
       this.resolver.resolveFilteringProtocols(protocols);
-    const filteredCandidates = this.filter.filterCandidatesByProtocols(
+    const filteredCandidates = this.filterService.filterCandidatesByProtocols(
       candidates,
       filteringProtocols,
     );
