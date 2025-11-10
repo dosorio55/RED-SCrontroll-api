@@ -8,7 +8,7 @@ export class RouteController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
-  post(@Body() body: RouteRequestDto): boolean {
+  post(@Body() body: RouteRequestDto): number[][] {
     return this.routeService.post(body);
   }
 }
