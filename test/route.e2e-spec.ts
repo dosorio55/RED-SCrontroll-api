@@ -3,9 +3,9 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { loadMockedCases } from './fixtures/mocked-tests';
+import { loadRouteTestCases } from './fixtures/route-tests';
 
-describe('RadarController (e2e)', () => {
+describe('RouteController (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
@@ -21,35 +21,28 @@ describe('RadarController (e2e)', () => {
     await app.close();
   });
 
-  it('/radar (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/radar')
-      .expect(200)
-      .expect('The radar is set and ready to LAUNCH!');
-  });
-
-  it('/radar (POST) processes all mocked test scenarios for radar correctly', async () => {
-    const cases = loadMockedCases();
+  it('/route (POST) processes all test scenarios correctly', async () => {
+    const cases = loadRouteTestCases();
 
     expect(cases.length).toBeGreaterThan(0);
 
     for (let i = 0; i < cases.length; i++) {
-      const mockedCase = cases[i];
+      const testCase = cases[i];
 
       await request(app.getHttpServer())
-        .post('/radar')
-        .send(mockedCase.request)
+        .post('/route')
+        .send(testCase.request)
         .expect(200)
-        .expect(mockedCase.expected);
+        .expect(testCase.expectedResponse);
     }
   });
 
-  it('/radar (POST) returns empty object when no scan data provided', () => {
-    const emptyRequest = { protocols: [], scan: [] };
-    const expectedResponse = {};
+  it('/route (POST) returns empty array when no radar data provided', () => {
+    const emptyRequest = { position: [0, 0], radar: [] };
+    const expectedResponse = [];
 
     return request(app.getHttpServer())
-      .post('/radar')
+      .post('/route')
       .send(emptyRequest)
       .expect(200)
       .expect(expectedResponse);

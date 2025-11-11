@@ -9,7 +9,7 @@ export interface MockedCase {
 }
 
 export function loadMockedCases(): MockedCase[] {
-  const jsonPath = path.join(__dirname, '..', 'mocked.tests.json');
+  const jsonPath = path.join(__dirname, '..', 'radar-test-cases.json');
 
   if (!fs.existsSync(jsonPath)) {
     throw new Error(`Mocked test cases file not found: ${jsonPath}`);
