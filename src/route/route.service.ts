@@ -1,17 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import RouteRequestDto from './dto/route-request.dto';
 
-interface Point {
+interface CoordinateInfo {
   x: number;
   y: number;
+  soldiers: number;
 }
 
 class KDNode {
-  point: Point;
+  point: CoordinateInfo;
   left: KDNode | null = null;
   right: KDNode | null = null;
 
-  constructor(point: Point) {
+  constructor(point: CoordinateInfo) {
     this.point = point;
   }
 }
@@ -19,18 +20,25 @@ class KDNode {
 class KDTree {
   private root: KDNode | null = null;
 
-  constructor(points: Point[]) {
+  constructor(points: RouteRequestDto['radar']) {
     this.root = this.buildTree(points, 0);
   }
 
-  private buildTree(points: Point[], depth: number): KDNode | null {
+  private buildTree(
+    points: RouteRequestDto['radar'],
+    depth: number,
+  ): KDNode | null {
     if (points.length === 0) return null;
 
     const axis = depth % 2;
-    points.sort((a, b) => (axis === 0 ? a.x - b.x : a.y - b.y));
+    points.sort((a, b) => (axis === 0 ? a[0] - b[0] : a[1] - b[1]));
 
     const median = Math.floor(points.length / 2);
-    const node = new KDNode(points[median]);
+    const node = new KDNode({
+      x: points[median][0],
+      y: points[median][1],
+      soldiers: points[median][2],
+    });
 
     node.left = this.buildTree(points.slice(0, median), depth + 1);
     node.right = this.buildTree(points.slice(median + 1), depth + 1);
@@ -38,20 +46,19 @@ class KDTree {
     return node;
   }
 
-  private distanceSquared(p1: Point, p2: Point): number {
+  private distanceSquared(p1: CoordinateInfo, p2: CoordinateInfo): number {
     const dx = p1.x - p2.x;
     const dy = p1.y - p2.y;
     return dx * dx + dy * dy;
   }
 
   findNearest(
-    target: Point,
-    enemies: Record<string, EnemyInformation[]>,
-    excludePoint?: Point[],
-  ): Point | null {
+    target: CoordinateInfo,
+    excludePoint?: CoordinateInfo[],
+  ): CoordinateInfo | null {
     if (!this.root) return null;
 
-    const best: { point: Point; distance: number } = {
+    const best: { point: CoordinateInfo; distance: number } = {
       point: this.root.point,
       distance: this.distanceSquared(target, this.root.point),
     };
@@ -60,17 +67,16 @@ class KDTree {
       best.distance = Infinity;
     }
 
-    this.searchNearest(this.root, target, 0, best, enemies, excludePoint);
+    this.searchNearest(this.root, target, 0, best, excludePoint);
     return best.point;
   }
 
   private searchNearest(
     node: KDNode | null,
-    target: Point,
+    target: CoordinateInfo,
     depth: number,
-    best: { point: Point; distance: number },
-    enemies: Record<string, EnemyInformation[]>,
-    excludePoint?: Point[],
+    best: { point: CoordinateInfo; distance: number },
+    excludePoint?: CoordinateInfo[],
   ): void {
     if (!node) return;
 
@@ -85,10 +91,8 @@ class KDTree {
         distance === best.distance &&
         (node.point.x !== best.point.x || node.point.y !== best.point.y)
       ) {
-        const enemyCount =
-          enemies[`${node.point.x}-${node.point.y}`]?.[0].soldiers || 0;
-        const bestEnemyCount =
-          enemies[`${best.point.x}-${best.point.y}`]?.[0].soldiers || 0;
+        const enemyCount = node.point.soldiers;
+        const bestEnemyCount = best.point.soldiers;
 
         if (enemyCount > bestEnemyCount) {
           best.point = node.point;
@@ -104,31 +108,20 @@ class KDTree {
     const first = targetValue < nodeValue ? node.left : node.right;
     const second = targetValue < nodeValue ? node.right : node.left;
 
-    this.searchNearest(first, target, depth + 1, best, enemies, excludePoint);
+    this.searchNearest(first, target, depth + 1, best, excludePoint);
 
     const axisDistance = targetValue - nodeValue;
     if (axisDistance * axisDistance < best.distance) {
-      this.searchNearest(
-        second,
-        target,
-        depth + 1,
-        best,
-        enemies,
-        excludePoint,
-      );
+      this.searchNearest(second, target, depth + 1, best, excludePoint);
     }
   }
 
-  findChain(
-    start: Point,
-    length: number,
-    enemies: Record<string, EnemyInformation[]>,
-  ): Point[] {
-    const chain: Point[] = [];
+  findChain(start: CoordinateInfo, length: number): CoordinateInfo[] {
+    const chain: CoordinateInfo[] = [];
     let currentPosition = start;
 
     for (let i = 0; i < length; i++) {
-      const nextPosition = this.findNearest(currentPosition, enemies, chain);
+      const nextPosition = this.findNearest(currentPosition, chain);
 
       if (!nextPosition) break;
 
@@ -140,59 +133,22 @@ class KDTree {
   }
 }
 
-interface EnemyInformation {
-  soldiers: number;
-}
-
 @Injectable()
 export class RouteService {
   constructor() {}
 
   post(radarAndPosition: RouteRequestDto): number[][] {
-    const { mappedRadar, enemies } = this.deleteDuplicatesAndGetSoldiersAndMap(
-      radarAndPosition.radar,
-    );
-
-    const kdTree = new KDTree(mappedRadar);
+    const kdTree = new KDTree(radarAndPosition.radar);
 
     const enemiesChain = kdTree.findChain(
-      { x: radarAndPosition.position[0], y: radarAndPosition.position[1] },
-      mappedRadar.length,
-      enemies,
+      {
+        x: radarAndPosition.position[0],
+        y: radarAndPosition.position[1],
+        soldiers: 0,
+      },
+      radarAndPosition.radar.length,
     );
 
     return enemiesChain.map((point) => [point.x, point.y]);
-  }
-
-  private deleteDuplicatesAndGetSoldiersAndMap(
-    radar: RouteRequestDto['radar'],
-  ): {
-    enemies: Record<string, EnemyInformation[]>;
-    mappedRadar: Point[];
-  } {
-    const enemiesMap: Record<string, EnemyInformation[]> = {};
-    const uniquePositions = new Set<string>();
-
-    for (const [x, y, soldiers] of radar) {
-      const key = `${x}-${y}`;
-
-      if (!enemiesMap[key]) {
-        enemiesMap[key] = [];
-      }
-
-      enemiesMap[key].push({ soldiers });
-      uniquePositions.add(key);
-    }
-
-    for (const key in enemiesMap) {
-      enemiesMap[key].sort((a, b) => b.soldiers - a.soldiers);
-    }
-
-    const mappedRadar: Point[] = Array.from(uniquePositions).map((key) => {
-      const [x, y] = key.split('-').map(Number);
-      return { x, y };
-    });
-
-    return { enemies: enemiesMap, mappedRadar };
   }
 }

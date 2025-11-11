@@ -28,7 +28,7 @@ describe('RadarController (e2e)', () => {
       .expect('The radar is set and ready to LAUNCH!');
   });
 
-  it('/radar (POST) processes all mocked test scenarios correctly', async () => {
+  it('/radar (POST) processes all mocked test scenarios for radar correctly', async () => {
     const cases = loadMockedCases();
 
     expect(cases.length).toBeGreaterThan(0);
