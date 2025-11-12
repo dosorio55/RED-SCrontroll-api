@@ -2,11 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { RadarModule } from './radar/radar.module';
 import { RouteModule } from './route/route.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), RadarModule, RouteModule],
+  imports: [ConfigModule.forRoot(), RouteModule],
   controllers: [AppController],
   providers: [AppService],
 })
