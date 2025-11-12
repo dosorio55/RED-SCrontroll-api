@@ -9,6 +9,10 @@ export class KDTree {
     this.root = this.buildTree(points, 0);
   }
 
+  getRoot(): KDNode | null {
+    return this.root;
+  }
+
   private buildTree(
     points: RouteRequestDto['radar'],
     depth: number,
@@ -37,7 +41,7 @@ export class KDTree {
     return dx * dx + dy * dy;
   }
 
-  findNearest(
+  private findNearest(
     target: CoordinateInfo,
     excludePoint?: CoordinateInfo[],
   ): CoordinateInfo | null {
